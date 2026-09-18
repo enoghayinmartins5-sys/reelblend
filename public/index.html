@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ReelBlend — TikTok × Facebook reels, one feed</title>
+<meta name="description" content="ReelBlend blends TikTok and Facebook video into a single reels feed, played through each platform's official player." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2325f4ee'/%3E%3Cstop offset='1' stop-color='%23ff2e63'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M38 28l30 22-30 22z' fill='%2307070b'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- ────────────────────────────────────────────────────────── top bar -->
+<header class="topbar">
+  <a class="brand" href="#reels" data-view="reels">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 100 100"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#25f4ee"/><stop offset="1" stop-color="#ff2e63"/></linearGradient></defs>
+        <rect width="100" height="100" rx="24" fill="url(#bg)"/>
+        <path d="M38 28l30 22-30 22z" fill="#07070b"/></svg>
+    </span>
+    <span class="brand-text">Reel<span>Blend</span></span>
+  </a>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-view="reels" role="tab">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M4 5h16v14H4z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor"/></svg>
+      Reels</button>
+    <button class="tab" data-view="explore" role="tab">
+      <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="1.7" fill="none"/></svg>
+      Explore</button>
+    <button class="tab" data-view="ingest" role="tab">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      Add videos</button>
+    <button class="tab" data-view="analytics" role="tab">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M5 19V9M10 19V5M15 19v-7M20 19v-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      Insights</button>
+  </nav>
+
+  <div class="topbar-right">
+    <div class="mix-quick" title="Feed blend: TikTok ⇄ Facebook">
+      <span class="mix-label tt">TT</span>
+      <input id="mixSlime" class="mix-slider" type="range" min="0" max="100" value="50" step="5" aria-label="Blend mix" />
+      <span class="mix-label fb">FB</span>
+      <output id="mixOut" class="mix-out">50/50</output>
+    </div>
+    <span id="health" class="health" title="API status"><i class="dot"></i><span id="healthText">connecting…</span></span>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ─────────────────────────────────────────────────────── reels view -->
+  <section id="view-reels" class="view is-active" aria-label="Reels feed">
+    <div class="reels-wrap">
+      <aside class="reels-side">
+        <button class="ghostbtn" id="reloadFeed" title="Rebuild the feed (R)">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M20 12a8 8 0 1 1-2.3-5.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          New mix
+        </button>
+        <div class="sideblock">
+          <h4>Blend</h4>
+          <input id="mixSlime2" class="mix-slider vertical" type="range" min="0" max="100" value="50" step="5" aria-label="Blend mix vertical" />
+          <div class="mix-readout"><span id="mixOut2">50% TikTok</span><span id="mixOut3">50% Facebook</span></div>
+        </div>
+        <div class="sideblock">
+          <h4>Sort</h4>
+          <div class="seg" id="sortSeg">
+            <button class="seg-btn is-active" data-sort="blend">Blend</button>
+            <button class="seg-btn" data-sort="fresh">Fresh</button>
+            <button class="seg-btn" data-sort="top">Top</button>
+            <button class="seg-btn" data-sort="recent">New</button>
+          </div>
+        </div>
+        <div class="sideblock">
+          <h4>This session</h4>
+          <ul class="mini-stats" id="sessionStats">
+            <li><span>Viewed</span><b id="ssViewed">0</b></li>
+            <li><span>Liked</span><b id="ssLiked">0</b></li>
+            <li><span>Watch time</span><b id="ssWatch">0s</b></li>
+            <li><span>Your top signal</span><b id="ssTag">—</b></li>
+          </ul>
+        </div>
+        <p class="fine">Embeds play through TikTok’s and Facebook’s own players. Nothing is downloaded or re-hosted.</p>
+      </aside>
+
+      <div class="stage-col">
+        <div class="stage" id="stage" tabindex="0" aria-live="polite">
+          <div class="stage-empty" id="stageEmpty">
+            <div class="spinner"></div><p>Building your blend…</p>
+          </div>
+        </div>
+
+        <div class="stage-bar">
+          <div class="progress"><i id="dwellBar"></i></div>
+          <div class="stage-controls">
+            <button class="ghostbtn sm" id="btnPrev" title="Previous (←)">◀ Prev</button>
+            <span class="pos" id="posIndicator">0 / 0</span>
+            <button class="ghostbtn sm" id="btnNext" title="Next (→)">Next ▶</button>
+            <label class="switch" title="Auto-advance to the next reel">
+              <input type="checkbox" id="autoAdvance" checked /><span>Autoplay next</span></label>
+            <label class="switch" title="Load the official player automatically">
+              <input type="checkbox" id="tapToPlay" /><span>Tap to play</span></label>
+            <button class="ghostbtn sm" id="btnWhy" title="Why this reel? (i)">Why this?</button>
+            <button class="ghostbtn sm" id="btnSound" title="Mute / unmute note">🔈</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="reels-meta">
+        <div class="whycard" id="whyCard">
+          <h4>Why this reel <span class="pill" id="whyLabel">—</span></h4>
+          <ul id="whyList"><li class="muted">Play a reel to see how the blend scored it.</li></ul>
+          <div class="bars" id="whyBars"></div>
+        </div>
+        <div class="insight" id="algoNote">
+          <h4>Blend engine</h4>
+          <p id="algoText">Signals: platform engagement, freshness, first-party watch-through, your tag affinity — then a TikTok/Facebook quota, creator spacing and an exploration slice.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ───────────────────────────────────────────────────── explore view -->
+  <section id="view-explore" class="view" aria-label="Explore catalog">
+    <div class="view-head">
+      <div>
+        <h2>Explore the catalog</h2>
+        <p class="sub" id="exploreSub">—</p>
+      </div>
+      <div class="filters">
+        <input id="exploreSearch" class="input" type="search" placeholder="Search title, creator or #tag…" />
+        <div class="seg" id="platSeg">
+          <button class="seg-btn is-active" data-platform="all">All</button>
+          <button class="seg-btn" data-platform="tiktok">TikTok</button>
+          <button class="seg-btn" data-platform="facebook">Facebook</button>
+        </div>
+        <select id="exploreSort" class="input select">
+          <option value="recent">Newest</option>
+          <option value="top">Most views</option>
+          <option value="likes">Most likes</option>
+          <option value="watched">Most watched here</option>
+          <option value="az">A–Z</option>
+        </select>
+        <select id="exploreStatus" class="input select">
+          <option value="live">Live</option>
+          <option value="pending">Pending review</option>
+          <option value="all">All statuses</option>
+        </select>
+      </div>
+    </div>
+    <div id="tagStrip" class="tagstrip"></div>
+    <div id="exploreGrid" class="grid"></div>
+    <div class="loadmore"><button class="btn" id="exploreMore">Load more</button></div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────── ingest view -->
+  <section id="view-ingest" class="view" aria-label="Add videos">
+    <div class="view-head">
+      <div>
+        <h2>Add videos to your blend</h2>
+        <p class="sub">Paste a public TikTok or Facebook link. ReelBlend verifies it through the platform’s official oEmbed endpoint, then adds it to your reels catalog.</p>
+      </div>
+    </div>
+
+    <div class="ingest-grid">
+      <div class="card">
+        <h3>1 · Paste a link</h3>
+        <div class="row">
+          <input id="ingestUrl" class="input grow" type="url" placeholder="https://www.tiktok.com/@creator/video/…  or  https://www.facebook.com/watch/?v=…" />
+          <button class="btn primary" id="ingestVerify">Verify link</button>
+          <button class="btn" id="ingestAdd">Add to blend</button>
+        </div>
+        <p class="hint">Supported shapes: <code>tiktok.com/@user/video/ID</code>, <code>vm.tiktok.com/…</code>, <code>facebook.com/watch/?v=ID</code>, <code>facebook.com/&lt;page&gt;/videos/ID</code>, <code>facebook.com/reel/ID</code>, <code>fb.watch/…</code></p>
+        <div id="ingestResult" class="ingest-result"></div>
+      </div>
+
+      <div class="card">
+        <h3>What the API returns</h3>
+        <div id="ingestLog" class="log"><p class="muted">Verification output appears here — including exactly which official endpoint resolved the video.</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 · Curate</h3>
+      <div class="row fields">
+        <label class="field"><span>Title / caption</span><input id="ingestTitle" class="input" placeholder="Give it a caption (required for Facebook — its public oEmbed returns no title)" /></label>
+        <label class="field"><span>Tags (comma separated)</span><input id="ingestTags" class="input" placeholder="dance, afrobeats, lagos" /></label>
+      </div>
+      <div class="row">
+        <label class="field grow"><span>Internal note</span><input id="ingestNote" class="input" placeholder="Why this belongs in the blend" /></label>
+      </div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="ingestPublish" checked /><span>Publish into the live feed immediately</span></label>
+        <button class="btn" id="ingestReset">Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Pending review <span class="count" id="pendingCount">0</span></h3>
+      <div id="pendingList" class="pending-list"></div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────── analytics -->
+  <section id="view-analytics" class="view" aria-label="Insights">
+    <div class="view-head">
+      <div>
+        <h2>Blend insights</h2>
+        <p class="sub">First-party telemetry from your own feed. Platform view/like numbers can only be replaced with real values by wiring an official API key (see README) — they are currently estimated at build time and labelled as such.</p>
+      </div>
+      <div class="seg" id="rangeSeg">
+        <button class="seg-btn" data-days="7">7d</button>
+        <button class="seg-btn is-active" data-days="30">30d</button>
+        <button class="seg-btn" data-days="60">60d</button>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="analytics-grid">
+      <div class="card">
+        <h3>Activity</h3>
+        <div id="chart" class="chart"></div>
+        <div class="legend"><span class="k impression"></span>Impressions <span class="k play"></span>Plays <span class="k like"></span>Likes</div>
+      </div>
+      <div class="card">
+        <h3>Platform blend</h3>
+        <div id="platformSplit" class="split"></div>
+      </div>
+      <div class="card">
+        <h3>Top reels in your feed</h3>
+        <div id="topVideos" class="toplist"></div>
+      </div>
+      <div class="card">
+        <h3>Top signals</h3>
+        <div id="tagCloud" class="tagcloud"></div>
+      </div>
+      <div class="card wide">
+        <h3>Ranking weights</h3>
+        <p class="hint">Tune the engine live. Every change re-ranks the next feed request — open Reels and hit “New mix”.</p>
+        <div class="weights" id="weights"></div>
+        <div class="row">
+          <button class="btn" id="saveWeights">Apply to next feed</button>
+          <button class="btn ghost" id="resetConfig">Reset defaults</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ─────────────────────────────────────────────────────────── modal -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <button class="modal-x" id="modalClose">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+node_modules/
+data/store.json
+data/store.json.tmp
+PUBLIC_URL.txt
+*.log
+*.zip
+.DS_Store

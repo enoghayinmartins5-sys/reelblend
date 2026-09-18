@@ -1,0 +1,19 @@
+# Render blueprint — one-click deploy for ReelBlend.
+# Zero dependencies: there is nothing to install, only Node to run.
+services:
+  - type: web
+    name: reelblend
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    buildCommand: npm install --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.2
+      - key: HOST
+        value: 0.0.0.0
+      # Render assigns $PORT automatically; the server reads it.

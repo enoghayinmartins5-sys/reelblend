@@ -1,0 +1,19 @@
+{
+  "name": "reelblend",
+  "version": "1.0.0",
+  "description": "A TikTok x Facebook reels system: embed-first aggregation, its own blend engine, telemetry and curation console.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "reset": "REELBLEND_RESET=1 node server/index.js",
+    "enrich": "node tools/enrich.js",
+    "smoke": "node tools/smoke.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "license": "MIT",
+  "private": true
+}
