@@ -39,6 +39,37 @@ deploy straight from this folder.
 
 ---
 
+## Keeping the live site updated
+
+**This service was created from a public repo via the Blueprint flow, and Render does not
+install a push webhook for that path — so `git push` alone will NOT redeploy it.** That is a
+one-time setup gap, not a bug. Fix it once with either option:
+
+**Option 1 — connect the GitHub App (permanent, zero credentials)**
+1. Open the service in the Render dashboard → **Settings → Build & Deploy → Auto-Deploy**
+2. Toggle it on; Render prompts you to connect GitHub
+3. Install the **Render GitHub App** for `enoghayinmartins5-sys/reelblend`
+
+After that, every push to `main` redeploys automatically and no token lives anywhere.
+
+**Option 2 — pull-based deploys (no GitHub App)**
+Trigger it yourself whenever you push, either from the dashboard
+(**Manual Deploy → Deploy latest commit**) or from the API:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $RENDER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"clearCache":"do_not_clear"}' \
+  https://api.render.com/v1/services/<SERVICE_ID>/deploys
+```
+
+Check a deploy's progress with `GET /v1/services/<SERVICE_ID>/deploys/<DEPLOY_ID>` until
+`status` is `live`.
+
+> Note: Render's public API does not expose deploy-hook creation, so the GitHub App (Option 1)
+> is the only fully automatic route.
+
 ## Why a real host fixes what the sandbox tunnel could not
 
 A Cloudflare quick tunnel points at a process **inside an ephemeral sandbox**. When that sandbox
