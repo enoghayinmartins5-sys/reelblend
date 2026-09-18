@@ -636,8 +636,18 @@
     track('share', item.id, null, item.platform);
   }
 
-  function openModal() { $('#modal').hidden = false; }
-  function closeModal() { $('#modal').hidden = true; }
+  function openModal() {
+    // callers all populate #modalBody first; clearing a stale/empty shell here
+    // means a stray open can never present an empty overlay
+    const body = $('#modalBody');
+    if (!body || !body.innerHTML.trim()) return;
+    $('#modal').hidden = false;
+    state.modalOpen = true;
+  }
+  function closeModal() {
+    $('#modal').hidden = true;
+    state.modalOpen = false;
+  }
 
   /* =====================================================================
      EXPLORE

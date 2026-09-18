@@ -34,6 +34,14 @@
 }
 
 *{box-sizing:border-box}
+
+/* The [hidden] attribute must always win.
+   Author rules like `.modal{display:grid}` out-specify the browser's built-in
+   `[hidden]{display:none}`, which left the modal overlay (dark backdrop +
+   blur(8px)) painted over the whole app on first load. This puts the UA rule
+   back on top for anything explicitly hidden. */
+[hidden]{display:none !important}
+
 html,body{height:100%}
 body{
   margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);
