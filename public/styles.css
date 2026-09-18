@@ -160,6 +160,32 @@ code{font-family:var(--mono);font-size:.86em;background:rgba(255,255,255,.06);pa
 .spinner{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:var(--tt-cyan);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── instant-boot skeleton ────────────────────────────────────────────────
+   Replaces the old full-stage "Building your blend…" loading screen. It is
+   shaped like a reel (badge, text bars, action rail) so the first paint already
+   looks like the app instead of a spinner on a black box. */
+.sk{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;
+    padding:22px;background:linear-gradient(158deg,#151522 0%,#0d0d15 55%,#0a0a11 100%)}
+.sk-top{display:flex;justify-content:space-between;align-items:flex-start}
+.sk-badge{width:78px;height:26px;border-radius:9px}
+.sk-rail{display:flex;flex-direction:column;gap:14px;align-items:center;margin-right:2px}
+.sk-orb{width:46px;height:46px;border-radius:50%}
+.sk-bars{display:flex;flex-direction:column;gap:11px;max-width:78%}
+.sk-bar{height:13px;border-radius:8px}
+.sk-bar.w1{width:62%} .sk-bar.w2{width:88%} .sk-bar.w3{width:44%}
+.sk-badge,.sk-orb,.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.055) 0%,rgba(255,255,255,.14) 45%,rgba(255,255,255,.055) 100%);
+  background-size:220% 100%;animation:sk-shimmer 1.5s ease-in-out infinite;
+}
+.sk-orb{animation-delay:.15s} .sk-badge{animation-delay:.3s}
+.sk-bar.w2{animation-delay:.45s} .sk-bar.w3{animation-delay:.6s}
+@keyframes sk-shimmer{0%{background-position:180% 0}100%{background-position:-180% 0}}
+@media (prefers-reduced-motion:reduce){.sk-badge,.sk-orb,.sk-bar{animation:none;background:rgba(255,255,255,.09)}}
+
+/* small inline boot status — a line, never a screen */
+.stage-status{font-size:12px;color:var(--ink-3);text-align:center;min-height:0}
+.stage-status b{color:var(--tt-cyan);font-weight:600}
+
 /* poster layer: deterministic gradient + typography, always behind the embed */
 .poster{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:26px;overflow:hidden}
 .poster::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.5) 55%,rgba(0,0,0,.88) 100%)}

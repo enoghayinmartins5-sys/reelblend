@@ -59,19 +59,43 @@
     return Math.round(d / 86400) + 'd ago';
   };
 
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /**
+   * API helper. Reads are retried because a sleeping free-tier host takes a few
+   * seconds to wake and its first requests can come back 502/503/504 — that is a
+   * cold start, not an error worth showing the viewer. Writes are never retried
+   * (a retried POST could double-apply).
+   */
   async function api(path, opts = {}) {
-    const res = await fetch(path, {
-      headers: { 'content-type': 'application/json' },
-      ...opts,
-      body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body,
-    });
-    let data = null;
-    try { data = await res.json(); } catch { /* empty */ }
-    if (!res.ok) {
+    const method = (opts.method || 'GET').toUpperCase();
+    const maxTries = method === 'GET' ? 3 : 1;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < maxTries; attempt++) {
+      let res;
+      try {
+        res = await fetch(path, {
+          headers: { 'content-type': 'application/json' },
+          ...opts,
+          body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body,
+        });
+      } catch (networkErr) {
+        lastError = new Error('Could not reach the server.');
+        if (attempt < maxTries - 1) { await sleep(900 * (attempt + 1)); continue; }
+        throw lastError;
+      }
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (res.ok) return data;
+      if (attempt < maxTries - 1 && [408, 429, 502, 503, 504].includes(res.status)) {
+        await sleep(900 * (attempt + 1));
+        continue;
+      }
       const err = new Error((data && (data.error || data.detail)) || ('HTTP ' + res.status));
       err.status = res.status; err.data = data; throw err;
     }
-    return data;
+    throw lastError || new Error('Request failed.');
   }
 
   /**
@@ -111,6 +135,8 @@
     autoAdvance: true, tapToPlay: false,
     explored: { offset: 0, limit: 48, total: 0 },
     dwell: { start: 0, raf: 0, accum: 0 },
+    tracked: new Set(),
+    booted: false,
     stats: { viewed: 0, liked: 0, watch: 0 },
     ingest: null,
   };
@@ -189,6 +215,49 @@
     return u.toString();
   }
 
+  /* ------------------------------------------------- feed cache + boot UI */
+  const FEED_CACHE = 'reelblend.feed.v1';
+
+  function readFeedCache() {
+    try {
+      const raw = store.get(FEED_CACHE);
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      return d && Array.isArray(d.items) && d.items.length ? d : null;
+    } catch { return null; }
+  }
+
+  function writeFeedCache(items, meta) {
+    try { store.set(FEED_CACHE, JSON.stringify({ items: items.slice(0, 12), meta, at: Date.now() })); } catch {}
+  }
+
+  /** One line of text under the stage — never a full-screen loader. */
+  function bootStatus(msg) {
+    const el = $('#stageStatus');
+    if (!el) return;
+    if (!msg) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false; el.innerHTML = msg;
+  }
+
+  /** First-paint placeholder shaped like a reel, so nothing looks "loading". */
+  function renderSkeleton() {
+    const stage = $('#stage');
+    if (!stage) return;
+    stage.innerHTML = '';
+    const sk = h('div', { class: 'sk', 'aria-hidden': 'true' });
+    sk.innerHTML = `
+      <div class="sk-top">
+        <span class="sk-badge"></span>
+        <div class="sk-rail">
+          <span class="sk-orb"></span><span class="sk-orb"></span><span class="sk-orb"></span><span class="sk-orb"></span>
+        </div>
+      </div>
+      <div class="sk-bars">
+        <span class="sk-bar w1"></span><span class="sk-bar w2"></span><span class="sk-bar w3"></span>
+      </div>`;
+    stage.appendChild(sk);
+  }
+
   /* =====================================================================
      REELS VIEW
      ===================================================================== */
@@ -209,10 +278,18 @@
       state.feedMeta = data.meta;
       renderStage();
       updateAlgoNote(data.meta);
-      const empty = $('#stageEmpty');
-      if (empty) empty.remove();
+      writeFeedCache(state.feed, data.meta);
+      state.booted = true;
+      return true;
     } catch (e) {
-      $('#stage').innerHTML = `<div class="stage-empty"><p>Could not load the feed: ${esc(e.message)}</p></div>`;
+      if (state.feed.length) {
+        // keep whatever is already on screen — a hiccup should never blank the app
+        toast('Showing your last mix — reconnecting…', true);
+        if (!state.dwell.raf) startDwell();
+      } else {
+        renderStageError(e);
+      }
+      return false;
     } finally {
       state.loading = false;
     }
@@ -220,11 +297,22 @@
 
   function currentItem() { return state.feed[state.idx] || null; }
 
-  function renderStage() {
+  function renderStageError(e) {
+    const stage = $('#stage');
+    stage.innerHTML = '';
+    stage.appendChild(h('div', { class: 'stage-empty' },
+      `<p style="max-width:34ch;line-height:1.6">Could not load a mix.<br><span class="muted" style="font-size:12px">${esc(e.message)}</span></p>`));
+    stage.appendChild(h('button', {
+      class: 'btn primary', style: 'position:relative;z-index:5;margin-top:6px',
+      onclick: () => { bootStatus('Trying again…'); loadFeed(true).then((ok) => { if (ok) bootStatus(''); }); },
+    }, 'Retry'));
+  }
+
+  function renderStage(track = true) {
     const stage = $('#stage');
     const item = currentItem();
     if (!item) {
-      stage.innerHTML = `<div class="stage-empty"><div class="spinner"></div><p>Pull up a mix…</p></div>`;
+      renderSkeleton();
       return;
     }
     stage.innerHTML = '';
@@ -314,7 +402,7 @@
 
     renderWhy(item);
     $('#posIndicator').textContent = `${state.idx + 1} / ${state.feed.length}`;
-    startDwell();
+    if (track) startDwell();
     // prefetch the next page before the viewer reaches the end
     if (state.idx >= state.feed.length - 3 && state.feedCursor) loadFeed(false);
   }
@@ -344,7 +432,7 @@
     state.dwell.start = performance.now();
     state.dwell.accum = 0;
     const item = currentItem(); if (!item) return;
-    track('impression', item.id, null, item.platform);
+    if (!state.tracked.has(item.id)) { state.tracked.add(item.id); track('impression', item.id, null, item.platform); }
     track('play', item.id, null, item.platform);
     state.stats.viewed++;
     updateSessionStats();
@@ -1015,6 +1103,27 @@
   /* ---------------------------------------------------------------- boot */
   async function boot() {
     wire();
+
+    // Paint before we call the network: cached mix if we have one, else a
+    // reel-shaped skeleton. There is no loading screen any more.
+    const cached = readFeedCache();
+    if (cached) {
+      state.feed = cached.items;
+      state.feedMeta = cached.meta;
+      state.idx = 0;
+      renderStage(false);              // no telemetry for the pre-hydrated copy
+      updateAlgoNote(cached.meta);
+      bootStatus('Refreshing your blend…');
+    } else {
+      renderSkeleton();
+      bootStatus('Connecting…');
+    }
+
+    // cold-start messaging: free hosts nap, and that is not the viewer's problem
+    const t1 = setTimeout(() => bootStatus('<b>Waking the server up…</b> free hosts sleep when idle'), 2500);
+    const t2 = setTimeout(() => bootStatus('<b>Still waking…</b> the first load after a nap can take ~30s'), 12000);
+    const clearStatusTimers = () => { clearTimeout(t1); clearTimeout(t2); };
+
     try {
       const health = await api('/api/health');
       $('#health').className = 'health ok';
@@ -1030,7 +1139,11 @@
       state.autoAdvance = state.config.autoplay !== false;
       $('#autoAdvance').checked = state.autoAdvance;
     } catch { setMix(50); }
+
     await loadFeed(true);
+    clearStatusTimers();
+    bootStatus('');
+    flushEvents();
     setInterval(() => updateSessionStats(), 1500);
     track('session_start', null, null, null);
     // deep link: #reels/<id> jumps straight to a reel

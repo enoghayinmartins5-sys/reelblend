@@ -85,13 +85,10 @@
       </aside>
 
       <div class="stage-col">
-        <div class="stage" id="stage" tabindex="0" aria-live="polite">
-          <div class="stage-empty" id="stageEmpty">
-            <div class="spinner"></div><p>Building your blend…</p>
-          </div>
-        </div>
+        <div class="stage" id="stage" tabindex="0" aria-live="polite"></div>
 
         <div class="stage-bar">
+          <div id="stageStatus" class="stage-status" hidden></div>
           <div class="progress"><i id="dwellBar"></i></div>
           <div class="stage-controls">
             <button class="ghostbtn sm" id="btnPrev" title="Previous (←)">◀ Prev</button>
